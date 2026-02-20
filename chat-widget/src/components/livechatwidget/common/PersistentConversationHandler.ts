@@ -122,7 +122,13 @@ class PersistentConversationHandler {
             const messagesDescOrder = [...messages]?.reverse();
 
             this.processHistoryMessages(messagesDescOrder);
-            
+
+            // Signal that a batch of history messages has been added to the store.
+            // LazyLoadActivity subscribes to this to apply scroll anchoring after render.
+            dispatchCustomEvent(ChatWidgetEvents.HISTORY_BATCH_LOADED, {
+                messageCount: messages.length
+            });
+
             TelemetryHelper.logActionEvent(LogLevel.INFO, {
                 Event: TelemetryEvent.LCWPersistentHistoryPullCompleted,
                 Description: "History pull completed successfully",
@@ -226,6 +232,10 @@ class PersistentConversationHandler {
     private processMessageToActivity(message: any): any {
         try {
             const activity = convertPersistentChatHistoryMessageToActivity(message);
+
+            if (!activity) {
+                return null;
+            }
 
             activity.id = activity.id || `activity-${this.count}`;
             activity.channelData = {
