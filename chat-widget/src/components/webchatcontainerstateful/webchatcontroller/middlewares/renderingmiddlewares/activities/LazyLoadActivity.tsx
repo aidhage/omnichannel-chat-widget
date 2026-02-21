@@ -69,7 +69,7 @@ class LazyLoadHandler {
     public static observer: IntersectionObserver | null = null;  // The intersection observer instance
     
     // Scroll anchoring state (height-delta approach)
-    private static preLoadScrollHeight = 0;                 // scrollHeight before content loads
+    public static preLoadScrollHeight = 0;                  // scrollHeight before content loads
     private static preLoadScrollTop = 0;                    // scrollTop before content loads
     public static initialLoadComplete = false;              // Tracks if the first batch has loaded
     public static pendingScrollAction = false;              // Prevents concurrent scroll operations (public for event handlers)
@@ -487,7 +487,7 @@ class LazyLoadHandler {
      * Uses delays to allow content stabilization before re-enabling
      * the intersection observer for the next lazy load cycle.
      */
-    private static finishScrollAction() {
+    public static finishScrollAction() {
         // Clean up scroll tracking state
         LazyLoadHandler.pendingScrollAction = false;
         

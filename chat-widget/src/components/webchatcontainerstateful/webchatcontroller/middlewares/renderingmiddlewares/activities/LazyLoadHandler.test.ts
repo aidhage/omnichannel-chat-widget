@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable @typescript-eslint/no-empty-function */
 
 import { LazyLoadHandler } from "./LazyLoadActivity";
 import ChatWidgetEvents from "../../../../../livechatwidget/common/ChatWidgetEvents";
-import { TelemetryHelper } from "../../../../../../common/telemetry/TelemetryHelper";
 
 // Mock dependencies
 jest.mock("../../../../../../common/telemetry/TelemetryHelper", () => ({
