@@ -112,6 +112,8 @@ class LazyLoadHandler {
     
     // History availability state
     public static hasMoreHistoryAvailable = true;          // Tracks if more history can be loaded
+    public static consecutiveErrorCount = 0;               // Tracks consecutive fetch errors for auto-dismiss
+    public static readonly MAX_CONSECUTIVE_ERRORS = 3;     // Max errors before hiding the banner
 
     // Debug method to track what's changing hasMoreHistoryAvailable
     public static setHasMoreHistoryAvailable(value: boolean) {
@@ -126,6 +128,7 @@ class LazyLoadHandler {
         LazyLoadHandler.resetPending = true;
         LazyLoadHandler.initialLoadComplete = false; // New session — next batch is an initial load
         LazyLoadHandler.setHasMoreHistoryAvailable(true);
+        LazyLoadHandler.consecutiveErrorCount = 0;   // Reset error counter
         LazyLoadHandler.unmount();
     }
 
@@ -683,6 +686,7 @@ class LazyLoadHandler {
         LazyLoadHandler.setHasMoreHistoryAvailable(true); // Reset history availability flag
         LazyLoadHandler.initializationQueue = [];   // Clear action queue
         LazyLoadHandler.resetPending = false;       // Clear pending reset flag
+        LazyLoadHandler.consecutiveErrorCount = 0;  // Reset error counter
         // Note: initialLoadComplete is NOT reset here — it persists across observer cycles.
         // It's only reset on new chat sessions (directReset / PersistentConversationReset).
 
@@ -783,17 +787,29 @@ const LazyLoadActivity = (props? : Partial<ILiveChatWidgetProps>) => {
 
         // Event listener for HISTORY_LOAD_ERROR - hides banner temporarily without disabling future loads
         const handleHistoryLoadError = () => {
+            LazyLoadHandler.consecutiveErrorCount++;
+
+            // After MAX_CONSECUTIVE_ERRORS without a successful load, give up and hide the banner
+            if (LazyLoadHandler.consecutiveErrorCount >= LazyLoadHandler.MAX_CONSECUTIVE_ERRORS) {
+                LazyLoadHandler.logLifecycleEvent(TelemetryEvent.LCWLazyLoadHistoryError,
+                    `Max consecutive errors (${LazyLoadHandler.MAX_CONSECUTIVE_ERRORS}) reached - hiding banner`);
+                LazyLoadHandler.handleNoMoreHistoryAvailable();
+                setHasMoreHistory(false);
+                return;
+            }
+
             // Temporarily hide the banner by pausing, but keep hasMoreHistory true to allow retry
             LazyLoadHandler.paused = true;
             LazyLoadHandler.pendingScrollAction = false;
-            
+
             // Re-enable after a delay to allow retry on next scroll
             // Note: This timeout is intentionally not tracked as it's scoped to the component lifecycle
             window.setTimeout(() => {
                 LazyLoadHandler.paused = false;
             }, 2000); // 2 second delay before allowing retry
-            
-            LazyLoadHandler.logLifecycleEvent(TelemetryEvent.LCWLazyLoadHistoryError, "History load error - will retry on next scroll");
+
+            LazyLoadHandler.logLifecycleEvent(TelemetryEvent.LCWLazyLoadHistoryError,
+                `History load error (attempt ${LazyLoadHandler.consecutiveErrorCount}/${LazyLoadHandler.MAX_CONSECUTIVE_ERRORS}) - will retry on next scroll`);
         };
 
         // Event listener for PersistentConversationReset to sync React state
@@ -806,6 +822,9 @@ const LazyLoadActivity = (props? : Partial<ILiveChatWidgetProps>) => {
 
         // Event listener for HISTORY_BATCH_LOADED — applies scroll anchoring after batch is processed
         const handleBatchLoaded = () => {
+            // Reset error counter on successful batch
+            LazyLoadHandler.consecutiveErrorCount = 0;
+
             LazyLoadHandler.logLifecycleEvent(TelemetryEvent.LCWLazyLoadBatchReceived,
                 `Batch received — initialLoadComplete: ${LazyLoadHandler.initialLoadComplete}`);
 
