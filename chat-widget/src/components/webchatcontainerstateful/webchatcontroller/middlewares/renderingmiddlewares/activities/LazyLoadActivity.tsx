@@ -781,7 +781,7 @@ const LazyLoadActivity = (props? : Partial<ILiveChatWidgetProps>) => {
             setHasMoreHistory(false);
         };
 
-        // Event listener for HISTORY_LOAD_ERROR - hides banner temporarily without disabling future loads
+        // Event listener for HISTORY_LOAD_ERROR — dismiss banner on any error
         const handleHistoryLoadError = () => {
             LazyLoadHandler.logLifecycleEvent(TelemetryEvent.LCWLazyLoadHistoryError,
                 `History load error - dismissing banner. initialLoadComplete: ${LazyLoadHandler.initialLoadComplete}`);
@@ -799,33 +799,41 @@ const LazyLoadActivity = (props? : Partial<ILiveChatWidgetProps>) => {
 
         // Event listener for HISTORY_BATCH_LOADED — applies scroll anchoring after batch is processed
         const handleBatchLoaded = () => {
-
-
             LazyLoadHandler.logLifecycleEvent(TelemetryEvent.LCWLazyLoadBatchReceived,
                 `Batch received — initialLoadComplete: ${LazyLoadHandler.initialLoadComplete}`);
 
             if (!LazyLoadHandler.initialLoadComplete) {
-                // Initial load: freeze the viewport while React renders history messages,
-                // then scroll to bottom and unfreeze. This prevents the visible jump-to-top flash.
-                // Uses overflow:hidden (no MutationObserver) — lightweight and doesn't fight react-scroll-to-bottom.
+                // Initial load: use the same height-delta scroll anchoring as subsequent loads.
+                // This keeps the user at their current position while history is prepended above.
                 LazyLoadHandler.initialLoadComplete = true;
                 LazyLoadHandler.pendingScrollAction = false;
 
                 try {
                     const { container } = LazyLoadHandler.findScrollContainer();
                     if (container) {
-                        // Freeze scroll position while React renders new content
+                        const savedScrollTop = container.scrollTop;
+                        const savedScrollHeight = container.scrollHeight;
+
+                        // Freeze viewport while React renders new content above
                         container.style.overflow = "hidden";
 
-                        // After React renders (double rAF), scroll to bottom and unfreeze
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                container.scrollTop = container.scrollHeight;
-                                container.style.overflow = "";  // Remove inline override, CSS class takes over
+                        let framesRemaining = 6;
+                        const anchorScroll = () => {
+                            const newScrollHeight = container.scrollHeight;
+                            const heightDelta = newScrollHeight - savedScrollHeight;
+                            if (heightDelta > 0) {
+                                container.scrollTop = savedScrollTop + heightDelta;
+                            }
+                            framesRemaining--;
+                            if (framesRemaining > 0) {
+                                requestAnimationFrame(anchorScroll);
+                            } else {
+                                container.style.overflow = "";
                                 LazyLoadHandler.paused = false;
                                 LazyLoadHandler.scheduleReset();
-                            });
-                        });
+                            }
+                        };
+                        requestAnimationFrame(anchorScroll);
                     } else {
                         LazyLoadHandler.paused = false;
                         LazyLoadHandler.scheduleReset();
@@ -836,7 +844,7 @@ const LazyLoadActivity = (props? : Partial<ILiveChatWidgetProps>) => {
                 }
 
                 LazyLoadHandler.logLifecycleEvent(TelemetryEvent.LCWLazyLoadInitialLoadComplete,
-                    "Initial history load complete — viewport frozen during render");
+                    "Initial history load complete — scroll anchored to current position");
                 return;
             }
             // Pagination: apply height-delta scroll anchoring repeatedly across frames.

@@ -188,7 +188,7 @@ class PersistentConversationHandler {
             pageToken: this.pageToken || undefined,
         };
 
-        try {           
+        try {
             const response = await this.facadeChatSDK?.fetchPersistentConversationHistory(options);
 
             const { chatMessages: messages, nextPageToken: pageToken } = response;

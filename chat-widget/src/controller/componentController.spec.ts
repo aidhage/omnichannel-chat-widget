@@ -1,5 +1,19 @@
 import { ConversationState } from "../contexts/common/ConversationState";
 import { ILiveChatWidgetContext } from "../contexts/common/ILiveChatWidgetContext";
+
+// Mock liveChatConfigUtils to avoid transitive Fluent UI ESM import issues.
+// Mirrors the real shouldLoadPersistentChatHistory logic: all 3 conditions must be met.
+jest.mock("../components/livechatwidget/common/liveChatConfigUtils", () => ({
+    shouldLoadPersistentChatHistory: jest.fn((config) => {
+        if (!config) return false;
+        const conversationMode = config.LiveWSAndLiveChatEngJoin?.msdyn_conversationmode;
+        const adminEnabled = config.LiveWSAndLiveChatEngJoin?.msdyn_enablepersistentchatpreviousconversations;
+        const featureFlag = config.LcwFcbConfiguration?.lcwPersistentChatHistoryEnabled;
+        const parseBool = (val: unknown) => val === true || val === "true";
+        return conversationMode === "192350001" && parseBool(adminEnabled) && parseBool(featureFlag);
+    })
+}));
+
 import { shouldShowOutOfOfficeHoursPane, shouldShowWebChatContainer } from "./componentController";
 
 describe("componentController unit tests", () => {
