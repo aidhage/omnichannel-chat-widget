@@ -902,6 +902,20 @@ export const LiveChatWidgetStateful = (props: ILiveChatWidgetProps) => {
 
     const livechatProps = { ...props, downloadTranscriptProps };
 
+    // Bug 6525143: keep the header from shrinking so a pre-chat survey taller than
+    // the (definite-height, justify-content: center) #oc-lcw container can never
+    // steal pixels from the header and clip it. The pre-chat pane wrapper absorbs the
+    // overflow via flex + internal scroll instead. flexShrink: 0 is seeded as a
+    // default *under* any caller-provided generalStyleProps so customizations win.
+    const headerGeneralStyleProps = Object.assign({ flexShrink: 0 }, livechatProps.headerProps?.styleProps?.generalStyleProps);
+    const headerPropsWithLayout = {
+        ...livechatProps.headerProps,
+        styleProps: {
+            ...livechatProps.headerProps?.styleProps,
+            generalStyleProps: headerGeneralStyleProps
+        }
+    };
+
     const chatWidgetDraggableConfig = {
         elementId: widgetElementId,
         channel: props.controlProps?.widgetInstanceId ?? "lcw",
@@ -1087,7 +1101,7 @@ export const LiveChatWidgetStateful = (props: ILiveChatWidgetProps) => {
 
                         {!livechatProps.controlProps?.hideProactiveChatPane && shouldShowProactiveChatPane(state) && (decodeComponentString(livechatProps.componentOverrides?.proactiveChatPane) || <ProactiveChatPaneStateful proactiveChatProps={livechatProps.proactiveChatPaneProps} startChat={prepareStartChatRelay} />)}
 
-                        {!livechatProps.controlProps?.hideHeader && shouldShowHeader(state) && (decodeComponentString(livechatProps.componentOverrides?.header) || <HeaderStateful headerProps={livechatProps.headerProps} outOfOfficeHeaderProps={livechatProps.outOfOfficeHeaderProps} endChat={endChatRelay} {...headerDraggableConfig} />)}
+                        {!livechatProps.controlProps?.hideHeader && shouldShowHeader(state) && (decodeComponentString(livechatProps.componentOverrides?.header) || <HeaderStateful headerProps={headerPropsWithLayout} outOfOfficeHeaderProps={livechatProps.outOfOfficeHeaderProps} endChat={endChatRelay} {...headerDraggableConfig} />)}
 
                         {!livechatProps.controlProps?.hideLoadingPane && shouldShowLoadingPane(state) && (decodeComponentString(livechatProps.componentOverrides?.loadingPane) || <LoadingPaneStateful loadingPaneProps={livechatProps.loadingPaneProps} startChatErrorPaneProps={livechatProps.startChatErrorPaneProps} />)}
 

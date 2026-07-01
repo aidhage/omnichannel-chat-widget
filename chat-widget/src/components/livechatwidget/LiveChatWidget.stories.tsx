@@ -966,6 +966,66 @@ const liveChatWidgetFixedSizeSurveyEnabledProps: ILiveChatWidgetProps = {
 LiveChatWidgetFixedSizeSurveyEnabled.args = liveChatWidgetFixedSizeSurveyEnabledProps;
 
 /*
+    Live Chat Widget Pre-Chat TALL Survey (Bug 6525143 header-clip visual guard)
+
+    A pre-chat survey deliberately TALLER than the 560px widget container. Before
+    the fix, the centered flex column overflowed and clipped the header's top edge;
+    after the fix the survey scrolls inside the pane and the header stays visible.
+    The matching screenshot config lives in LiveChatWidget.stories.playwright.json.
+*/
+class MockChatSDKTallSurveyEnabled extends MockChatSDK {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    public getPreChatSurvey(parseToJson: boolean) {
+        const body: Array<Record<string, unknown>> = [
+            { type: "TextBlock", weight: "bolder", text: "Please answer the questions below." }
+        ];
+        // 12 fields guarantee the survey exceeds the 560px container height.
+        for (let i = 1; i <= 12; i++) {
+            body.push({ type: "TextBlock", text: "Question " + i, wrap: true });
+            body.push({ type: "Input.Text", id: "q" + i, maxLength: 100 });
+        }
+        return JSON.stringify({
+            type: "AdaptiveCard",
+            version: "1.1",
+            body,
+            actions: [{ type: "Action.Submit", data: { Type: "InputSubmit" }, title: "Submit" }]
+        });
+    }
+}
+
+export const LiveChatWidgetPreChatTallSurvey = LiveChatWidgetTemplate.bind({});
+const liveChatWidgetPreChatTallSurveyProps: ILiveChatWidgetProps = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    chatSDK: new MockChatSDKTallSurveyEnabled() as any,
+    telemetryConfig: dummyTelemetryConfig,
+    chatConfig: MockChatConfig,
+    styleProps: {
+        generalStyles: {
+            width: "360px",
+            height: "560px",
+            top: "20px",
+            left: "20px"
+        }
+    },
+    chatButtonProps: {
+        styleProps: {
+            generalStyleProps: {
+                position: "absolute"
+            }
+        }
+    },
+    headerProps: {
+        controlProps: {
+            headerTitleProps: {
+                id: "oc-lcw-header-title",
+                text: "Chat med en rådgiver"
+            }
+        }
+    }
+};
+LiveChatWidgetPreChatTallSurvey.args = liveChatWidgetPreChatTallSurveyProps;
+
+/*
     Live Chat Widget Customized Pre + Post Chat
 */
 
